@@ -375,7 +375,7 @@ def main(country_code, threshold, tmode):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Process country data")
-    parser.add_argument("country_code", type=str, help="Number of the country to process")
+    parser.add_argument("country_code", type=str, help="iso3 code of the country to process")
     parser.add_argument("threshold", type=str, help="threshold travel time for pure cumulative accessibility")
     parser.add_argument("tmode", type=str, help="Transport mode ('moto' or 'walk')")
 
