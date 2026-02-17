@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Dec 19 11:17:59 2024
+Download the Wolrdpop UN-adjusted population data for a specific country and year.
 
-@author: benassi
+@author: Robert Benassai
 """
 
 import geopandas as gpd
@@ -58,7 +58,7 @@ def download_worldpop_data(country_code, year, output_dir="worldpop_data"):
 
 def download_worldpop_demographics_data(country_code, year, output_dir="worldpop_data"):
     """
-    Download WorldPop UN-adjusted population data for a specific country and year.
+    Download WorldPop UN-adjusted population data and demographics (age and gender) for a specific country and year.
 
     Args:
         country_code (str): ISO3 country code (e.g., "KEN" for Kenya).

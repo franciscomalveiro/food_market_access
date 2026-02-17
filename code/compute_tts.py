@@ -254,7 +254,55 @@ def generate_travel_time_raster(friction_data, transform, target_coords, pixel_s
 
     # rows, cols = travel_time_raster.shape
     return travel_time_raster
-            
+
+def compute_OD_travel_time(friction_data, transform, origin_coords, target_coords, pixel_size):
+    """
+    Computes the travel time from an origin (or set of origins) to a target location.
+
+    Parameters:
+    ----------
+    friction_data : np.ndarray
+        Array of friction values (e.g., travel time per unit distance).
+    transform : Affine
+        Affine transformation for the raster.
+    origin_coords : tuple
+        row, col of the origin pixel(s) in the raster. Can be a single tuple for one origin or a list of tuples for multiple origins.
+    target_coords : tuple
+        Geographic coordinates of the target location.
+    pixel_size : float
+        Average pixel size in meters.
+
+    Returns:
+    -------
+    float
+        Travel time from the origin to the target location in minutes.
+    """
+    # Get the pixel coordinates for the origin and target locations
+    
+    row_target, col_target = rowcol(transform, *target_coords)
+    
+    adjusted_friction_data = friction_data * pixel_size  # Now in minutes per pixel step
+
+    # Create an MCP object, which allows us to find the minimum cost path efficiently
+    mcp = MCP_Geometric(adjusted_friction_data)
+    
+    # Use the `find_costs` method to calculate the minimum cost (travel time) from the target
+    travel_time_raster, traceback = mcp.find_costs(starts=[[row_target, col_target]])
+
+    if np.shape(origin_coords)[0] > 1:
+        travel_times = []
+        for origin in origin_coords:
+            row_origin, col_origin = origin
+            travel_time_to_origin = travel_time_raster[row_origin, col_origin]
+            travel_times.append(travel_time_to_origin)
+        return travel_times
+    
+    else:
+        row_origin, col_origin = origin_coords[0]
+        # Extract the travel time for the origin location
+        travel_time_to_origin = travel_time_raster[row_origin, col_origin]
+        return [travel_time_to_origin]
+    
 
 # --- Step 4: Visualize the travel time raster ---
 def visualize_travel_time_raster(travel_time_raster):
