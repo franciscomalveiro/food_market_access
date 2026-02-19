@@ -1,55 +1,27 @@
 import requests
 
+import pandas as pd
 import geopandas as gpd
 import numpy as np
 import matplotlib.pyplot as plt
-from shapely.ops import unary_union
 import rasterio
 from rasterio.transform import rowcol
-from skimage.graph import MCP, MCP_Geometric
 import time
-from rasterio.transform import from_bounds
-from geopy.distance import distance
 import os
-from shapely.geometry import Polygon, MultiPolygon, Point, mapping
-from rasterio.mask import mask
-from rasterio.warp import reproject, Resampling, calculate_default_transform
+from shapely.geometry import  Point
 import random
 import compute_tts
-
-import time
-import random
-import requests
-from typing import Tuple, Optional, Dict, Any
-
 from pyproj import Transformer
-
-import geopandas as gpd
 import argparse
-import os
-import shutil
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import rasterio
-import scipy
-import pickle
 from tqdm import tqdm
-
-from shapely.geometry import Polygon, MultiPolygon, Point, mapping
-
+from scipy.stats import spearmanr
 # local files
 
 import centroids 
 import compute_tts
-import accessibility_metrics
 # codes for the countries are taken from openAfrica's dataset (https://open.africa/dataset/africa-shapefiles/resource/dcdadd25-0137-4c93-ae5a-82b39d424d60)
 
-import requests
-import time
-import random
 from typing import Any, Dict, Optional, Tuple
-from pyproj import Transformer
 
 
 def transformer_to_wgs84(from_epsg: int) -> Transformer:
@@ -266,7 +238,7 @@ def fmt(x, pos):
         return '0'
 
 
-def main(country_code, tmode):
+def main(country_code, tmode, max_sep = 80):
     if tmode != 'moto' and tmode != "walk":
         msg = f"Chose a valid transport mode. Options walk for walking and moto for motorized. {tmode} is not valid"
         raise Exception(msg)
@@ -406,7 +378,7 @@ def main(country_code, tmode):
         target_row, target_col = rowcol(src_transform, x, y)
 
         # 10 km radius in pixels (if pixel_size is meters)
-        cell_rad = int(20000 / pixel_size)
+        cell_rad = int(max_sep*1000 / pixel_size)
         #cell_rad = np.inf  # no radius limit, use entire raster (comment out the above line if you want to use the radius limit)
         # Clamp window bounds (CRITICAL)
         r0 = max(0, target_row - cell_rad)
@@ -464,10 +436,23 @@ def main(country_code, tmode):
                 continue
         travel_times_osm_tot += travel_times_osm
     
+    # compute spearman correlation
+    valid_indices = ~np.isnan(travel_times_osm_tot) & ~np.isnan(travel_times_fs_tot)
+    if np.sum(valid_indices) > 1:
+        corr, p_value = spearmanr(np.array(travel_times_fs_tot)[valid_indices], np.array(travel_times_osm_tot)[valid_indices])
+        print(f"Spearman correlation: {corr:.4f} (p-value: {p_value:.4e})")
+    else:
+        print("Not enough valid data points to compute Spearman correlation.")
+
+    if p_value < 0.05:
+        lab = "$p < 0.05$"
+    else:
+        lab = f"$p = {p_value:.2e}$"
     # Plotting the results
     print(len(travel_times_fs_tot), len(travel_times_osm_tot))
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(10, 8))
     plt.scatter(travel_times_fs_tot, travel_times_osm_tot, alpha=0.5)
+    plt.text(0.05, 0.95, f"Spearman r = {corr:.2f}\n{lab}", transform=plt.gca().transAxes, fontsize=14, verticalalignment='top')
     plt.xlabel('Travel Time from Friction Surface (minutes)', fontsize=25)
     plt.ylabel('Travel Time from OSM API (minutes)', fontsize=25)
     plt.xticks(fontsize=23)
@@ -489,7 +474,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process country data")
     parser.add_argument("country_code", type=str, help="iso3 code of the country to process")
     parser.add_argument("tmode", type=str, help="Transport mode ('moto' or 'walk')")
+    parser.add_argument("max_sep", type=float, help="Maximum separation in km")
+
 
     args = parser.parse_args()
 
-    main(args.country_code, args.tmode)
+    main(args.country_code, args.tmode, max_sep=args.max_sep)
