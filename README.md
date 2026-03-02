@@ -1,4 +1,4 @@
-# Unequal Journeys to Food Markets: Continental‑Scale Evidence from Open Data in Africa
+# Continental-scale assessment of spatial food market accessibility in Africa using open geospatial data
 
 ## Table of Contents
 1. [Citing](#citing)
