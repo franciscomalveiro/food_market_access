@@ -1,9 +1,6 @@
 .DS_Store
-acc_sparse.pickle
-sparse_x.pickle
-sparse_y.pickle
-eth_ppp_2017_cropped.tif
-eth_ppp_2017_rescaled_sum.tif
+*.pickle
+*_cropped.tif
 data/
 figs/
 prev_codes/
