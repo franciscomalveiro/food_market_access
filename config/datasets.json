@@ -1,0 +1,17 @@
+{
+	"datasets": [
+	{
+		"name": "unosat",
+		"description": "natural disasters", 
+		"path": "/data/big/fmalveiro/unosat/raw/",
+		"symlink": "./data/raw/disruption/"
+	},
+	{
+		"name": "geofabrik",
+		"description": "openstretmap data",
+		"path": "/data/dataset2",
+		"symlink": "./data/raw/osm/"
+	}
+	]
+}   
+

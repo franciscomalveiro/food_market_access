@@ -1,0 +1,6 @@
+{
+  "default": "epsg:4326",
+  "countries": {
+    "ken": "epsg:21097"
+  }
+}
