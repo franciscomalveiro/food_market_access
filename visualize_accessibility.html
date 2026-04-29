@@ -186,6 +186,21 @@
             margin: 4px 0;
             padding: 2px 0;
         }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error {
+            background-color: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
         
         @media (max-width: 1024px) {
             .content {
@@ -433,23 +448,49 @@
             });
         });
 
-        // Note: You need to replace the geojsonData.features array with actual data from your file
-        // For now, this is a template. You can load data via:
-        // 1. Inline the GeoJSON
-        // 2. Fetch from a URL
-        // 3. Parse from a CSV/JSON file
+        // Load GeoJSON data via GitHub Raw Content API (avoids CORS issues)
+        function loadDataFromGitHub() {
+            const owner = 'robedamo';
+            const repo = 'food_market_access';
+            const filename = 'access_adm_2.geojson';
+            
+            // Use GitHub Raw Content API which has proper CORS headers
+            const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${filename}`;
+            
+            document.getElementById('statsContent').innerHTML = '<div class="loading">Loading data...</div>';
+            
+            fetch(rawUrl, {
+                method: 'GET',
+                mode: 'cors',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                geojsonData.features = data.features;
+                loadGeojsonData(geojsonData);
+            })
+            .catch(error => {
+                console.error('Error loading GeoJSON:', error);
+                document.getElementById('statsContent').innerHTML = `
+                    <div class="error">
+                        <strong>Error loading data:</strong><br>
+                        ${error.message}<br><br>
+                        Make sure <code>access_adm_2.geojson</code> exists in your repository.
+                    </div>
+                `;
+            });
+        }
 
-        // Placeholder: Initialize with empty data structure
-        loadGeojsonData(geojsonData);
+        // Initialize the visualization
         updateLegend(currentMetric);
-
-        // Example: Load data from a fetch (uncomment and modify the URL)
-        // fetch('access_adm_2.geojson')
-        //     .then(response => response.json())
-        //     .then(data => {
-        //         geojsonData.features = data.features;
-        //         loadGeojsonData(geojsonData);
-        //     });
+        loadDataFromGitHub();
     </script>
 </body>
 </html>
