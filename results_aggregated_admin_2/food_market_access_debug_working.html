@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Food Market Accessibility Map</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/chroma-js@2.4.2/chroma.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+    }
+    .app {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+    }
+    header {
+      padding: 16px 20px;
+      background: #26364a;
+      color: white;
+    }
+    header h1 {
+      margin: 0 0 6px 0;
+      font-size: 24px;
+    }
+    header p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 14px;
+    }
+    .main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 12px;
+      padding: 12px;
+      height: calc(100vh - 82px);
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+      min-height: 520px;
+      background: #dfe7ef;
+      border: 1px solid #c7d0d9;
+      border-radius: 8px;
+    }
+    aside {
+      overflow: auto;
+      background: white;
+      border: 1px solid #d5dce3;
+      border-radius: 8px;
+      padding: 14px;
+    }
+    h2 {
+      font-size: 16px;
+      margin: 0 0 10px 0;
+    }
+    .section {
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #e5e9ee;
+    }
+    .section:last-child { border-bottom: 0; }
+    .status {
+      padding: 10px;
+      border-radius: 6px;
+      background: #eef5ff;
+      border: 1px solid #bfd7ff;
+      font-size: 13px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .status.error {
+      background: #fff0f0;
+      border-color: #f0b9b9;
+      color: #8a1f1f;
+    }
+    .metric-button {
+      display: block;
+      width: 100%;
+      margin: 6px 0;
+      padding: 10px;
+      border: 1px solid #bfc8d2;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: left;
+      font-size: 14px;
+    }
+    .metric-button.active {
+      background: #26364a;
+      color: white;
+      border-color: #26364a;
+    }
+    .metric-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+    .legend-row, .stat-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 6px 0;
+      font-size: 13px;
+    }
+    .legend-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .swatch {
+      width: 22px;
+      height: 16px;
+      border: 1px solid rgba(0,0,0,0.25);
+      border-radius: 3px;
+    }
+    .file-input {
+      width: 100%;
+      font-size: 13px;
+    }
+    .note {
+      font-size: 13px;
+      color: #555;
+      line-height: 1.35;
+    }
+    .popup-title {
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .popup-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      margin: 3px 0;
+    }
+    code {
+      background: #eef0f2;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    @media (max-width: 980px) {
+      .main {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      #map { height: 620px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Food Market Accessibility Analysis</h1>
+    <p>Admin 2 polygons colored by accessibility metrics</p>
+  </header>
+
+  <div class="main">
+    <div id="map"></div>
+
+    <aside>
+      <div class="section">
+        <h2>Status</h2>
+        <div id="status" class="status">Starting...</div>
+      </div>
+
+      <div class="section">
+        <h2>Manual file load</h2>
+        <p class="note">If the automatic load fails, select your local <code>access_adm_2.geojson</code> file here.</p>
+        <input id="fileInput" class="file-input" type="file" accept=".geojson,.json,application/geo+json,application/json" />
+      </div>
+
+      <div class="section">
+        <h2>Metric</h2>
+        <button class="metric-button active" data-metric="travelt_moto">Travel Time - Moto</button>
+        <button class="metric-button" data-metric="travelt_walk">Travel Time - Walk</button>
+        <button class="metric-button" data-metric="tot_pop">Total Population</button>
+        <button class="metric-button" data-metric="entropy">Entropy</button>
+        <button class="metric-button" data-metric="cumulative">Cumulative</button>
+      </div>
+
+      <div class="section">
+        <h2>Legend</h2>
+        <div id="legend"></div>
+      </div>
+
+      <div class="section">
+        <h2>Statistics</h2>
+        <div id="stats"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+  const LOCAL_GEOJSON_URL = './access_adm_2.geojson';
+  const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/robedamo/food_market_access/main/results_aggregated_admin_2/access_adm_2.geojson';
+
+  const metricConfig = {
+    travelt_moto: {
+      label: 'Travel Time - Moto',
+      unit: 'min',
+      colors: ['#1a9850', '#fee08b', '#d73027']
+    },
+    travelt_walk: {
+      label: 'Travel Time - Walk',
+      unit: 'min',
+      colors: ['#2c7bb6', '#ffffbf', '#d7191c']
+    },
+    tot_pop: {
+      label: 'Total Population',
+      unit: 'people',
+      colors: ['#f7fbff', '#6baed6', '#08306b']
+    },
+    entropy: {
+      label: 'Entropy',
+      unit: '',
+      colors: ['#f7fcf5', '#74c476', '#00441b']
+    },
+    cumulative: {
+      label: 'Cumulative',
+      unit: '',
+      colors: ['#fff7ec', '#fdae6b', '#7f2704']
+    }
+  };
+
+  let geojsonData = null;
+  let geojsonLayer = null;
+  let currentMetric = 'travelt_moto';
+  let currentStats = {};
+
+  const map = L.map('map', {
+    preferCanvas: true,
+    renderer: L.canvas({ padding: 0.5 })
+  }).setView([5, 20], 3);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  function setStatus(message, isError = false) {
+    const el = document.getElementById('status');
+    el.textContent = message;
+    el.className = isError ? 'status error' : 'status';
+  }
+
+  function getMetricValue(feature, metric) {
+    const value = feature?.properties?.[metric];
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) ? numberValue : null;
+  }
+
+  function percentile(sortedValues, p) {
+    if (!sortedValues.length) return null;
+    const index = (sortedValues.length - 1) * p;
+    const lower = Math.floor(index);
+    const upper = Math.ceil(index);
+    if (lower === upper) return sortedValues[lower];
+    return sortedValues[lower] + (sortedValues[upper] - sortedValues[lower]) * (index - lower);
+  }
+
+  function computeStats(metric) {
+    const values = geojsonData.features
+      .map(feature => getMetricValue(feature, metric))
+      .filter(value => value !== null)
+      .sort((a, b) => a - b);
+
+    if (!values.length) {
+      currentStats[metric] = null;
+      return null;
+    }
+
+    const stats = {
+      count: values.length,
+      min: values[0],
+      max: values[values.length - 1],
+      mean: values.reduce((sum, value) => sum + value, 0) / values.length,
+      median: percentile(values, 0.5),
+      p02: percentile(values, 0.02),
+      p98: percentile(values, 0.98)
+    };
+
+    if (stats.p02 === stats.p98) {
+      stats.p02 = stats.min;
+      stats.p98 = stats.max;
+    }
+
+    currentStats[metric] = stats;
+    return stats;
+  }
+
+  function formatNumber(value, metric) {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) return 'No data';
+
+    const config = metricConfig[metric];
+    const numberValue = Number(value);
+
+    if (metric === 'tot_pop') {
+      return `${Math.round(numberValue).toLocaleString()} ${config.unit}`;
+    }
+
+    const formatted = Math.abs(numberValue) >= 100
+      ? numberValue.toFixed(1)
+      : numberValue.toFixed(2);
+
+    return config.unit ? `${formatted} ${config.unit}` : formatted;
+  }
+
+  function getColor(feature, metric) {
+    const value = getMetricValue(feature, metric);
+    if (value === null) return '#bdbdbd';
+
+    const stats = currentStats[metric] || computeStats(metric);
+    if (!stats) return '#bdbdbd';
+
+    const low = stats.p02;
+    const high = stats.p98;
+    const clipped = Math.max(low, Math.min(value, high));
+    const ratio = high === low ? 0.5 : (clipped - low) / (high - low);
+
+    return chroma.scale(metricConfig[metric].colors).mode('lab')(ratio).hex();
+  }
+
+  function polygonStyle(feature) {
+    return {
+      renderer: L.canvas(),
+      color: '#111111',
+      weight: 0.6,
+      opacity: 0.85,
+      fillColor: getColor(feature, currentMetric),
+      fillOpacity: 0.78
+    };
+  }
+
+  function popupContent(feature) {
+    const props = feature.properties || {};
+    const name = props.Name || props.name || props.Code || 'Unknown area';
+    const adm1 = props.Name_adm1 || props.name_adm1 || 'Unknown region';
+    const country = props.country_name || props.country_num || 'Unknown country';
+
+    return `
+      <div class="popup-title">${name}</div>
+      <div class="popup-row"><span>Region</span><strong>${adm1}</strong></div>
+      <div class="popup-row"><span>Country</span><strong>${country}</strong></div>
+      <div class="popup-row"><span>${metricConfig[currentMetric].label}</span><strong>${formatNumber(getMetricValue(feature, currentMetric), currentMetric)}</strong></div>
+      <div class="popup-row"><span>Population</span><strong>${formatNumber(getMetricValue(feature, 'tot_pop'), 'tot_pop')}</strong></div>
+    `;
+  }
+
+  function renderLayer() {
+    if (!geojsonData || !geojsonData.features || !geojsonData.features.length) {
+      setStatus('No features found in the GeoJSON.', true);
+      return;
+    }
+
+    if (geojsonLayer) {
+      map.removeLayer(geojsonLayer);
+    }
+
+    computeStats(currentMetric);
+
+    geojsonLayer = L.geoJSON(geojsonData, {
+      style: polygonStyle,
+      onEachFeature: function(feature, layer) {
+        layer.bindPopup(popupContent(feature));
+      }
+    }).addTo(map);
+
+    const bounds = geojsonLayer.getBounds();
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [20, 20] });
+    } else {
+      setStatus('Layer was created, but bounds are invalid. Check geometry coordinates.', true);
+      return;
+    }
+
+    updateStatsPanel();
+    updateLegend();
+
+    setStatus(
+      `Loaded ${geojsonData.features.length.toLocaleString()} polygons.\n` +
+      `Current metric: ${metricConfig[currentMetric].label}.\n` +
+      `Bounds: ${bounds.toBBoxString()}`
+    );
+  }
+
+  function updateLayerMetric() {
+    if (!geojsonLayer) return;
+    computeStats(currentMetric);
+
+    geojsonLayer.setStyle(polygonStyle);
+    geojsonLayer.eachLayer(layer => {
+      layer.setPopupContent(popupContent(layer.feature));
+    });
+
+    updateStatsPanel();
+    updateLegend();
+    setStatus(`Showing ${metricConfig[currentMetric].label} for ${geojsonData.features.length.toLocaleString()} polygons.`);
+  }
+
+  function updateStatsPanel() {
+    const stats = currentStats[currentMetric] || computeStats(currentMetric);
+    const el = document.getElementById('stats');
+
+    if (!stats) {
+      el.innerHTML = '<p>No numeric values for this metric.</p>';
+      return;
+    }
+
+    el.innerHTML = `
+      <div class="stat-row"><span>Valid values</span><strong>${stats.count.toLocaleString()}</strong></div>
+      <div class="stat-row"><span>Min</span><strong>${formatNumber(stats.min, currentMetric)}</strong></div>
+      <div class="stat-row"><span>Median</span><strong>${formatNumber(stats.median, currentMetric)}</strong></div>
+      <div class="stat-row"><span>Mean</span><strong>${formatNumber(stats.mean, currentMetric)}</strong></div>
+      <div class="stat-row"><span>Max</span><strong>${formatNumber(stats.max, currentMetric)}</strong></div>
+    `;
+  }
+
+  function updateLegend() {
+    const stats = currentStats[currentMetric] || computeStats(currentMetric);
+    const el = document.getElementById('legend');
+
+    if (!stats) {
+      el.innerHTML = '<p>No legend available.</p>';
+      return;
+    }
+
+    const scale = chroma.scale(metricConfig[currentMetric].colors).mode('lab');
+    const rows = [];
+
+    for (let i = 0; i <= 5; i++) {
+      const ratio = i / 5;
+      const value = stats.p02 + (stats.p98 - stats.p02) * ratio;
+      rows.push(`
+        <div class="legend-row">
+          <div class="legend-left">
+            <span class="swatch" style="background:${scale(ratio).hex()}"></span>
+            <span>${formatNumber(value, currentMetric)}</span>
+          </div>
+        </div>
+      `);
+    }
+
+    el.innerHTML = rows.join('');
+  }
+
+  function validateAndSetData(data, sourceLabel) {
+    if (!data || data.type !== 'FeatureCollection' || !Array.isArray(data.features)) {
+      throw new Error('Invalid GeoJSON. Expected FeatureCollection with features array.');
+    }
+
+    geojsonData = data;
+    currentStats = {};
+
+    const firstProps = data.features[0]?.properties || {};
+    document.querySelectorAll('.metric-button').forEach(button => {
+      const metric = button.dataset.metric;
+      button.disabled = !(metric in firstProps);
+    });
+
+    if (!(currentMetric in firstProps)) {
+      const firstAvailableMetric = Object.keys(metricConfig).find(metric => metric in firstProps);
+      if (firstAvailableMetric) currentMetric = firstAvailableMetric;
+    }
+
+    document.querySelectorAll('.metric-button').forEach(button => {
+      button.classList.toggle('active', button.dataset.metric === currentMetric);
+    });
+
+    setStatus(`Parsed ${data.features.length.toLocaleString()} features from ${sourceLabel}. Rendering polygons...`);
+    setTimeout(renderLayer, 20);
+  }
+
+  async function loadFromUrl(url, label) {
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`${label} failed: HTTP ${response.status}. ${text.slice(0, 200)}`);
+    }
+    const data = await response.json();
+    validateAndSetData(data, label);
+  }
+
+  async function autoLoad() {
+    try {
+      setStatus(`Trying local file: ${LOCAL_GEOJSON_URL}`);
+      await loadFromUrl(LOCAL_GEOJSON_URL, 'local file');
+    } catch (localError) {
+      console.warn(localError);
+      try {
+        setStatus(`Local file failed. Trying GitHub raw URL...\n${GITHUB_RAW_URL}`);
+        await loadFromUrl(GITHUB_RAW_URL, 'GitHub raw file');
+      } catch (githubError) {
+        console.error(githubError);
+        setStatus(
+          `Automatic loading failed.\n\n` +
+          `Local error: ${localError.message}\n\n` +
+          `GitHub error: ${githubError.message}\n\n` +
+          `Use the manual file loader above and select access_adm_2.geojson.`,
+          true
+        );
+      }
+    }
+  }
+
+  document.querySelectorAll('.metric-button').forEach(button => {
+    button.addEventListener('click', () => {
+      if (button.disabled) return;
+      currentMetric = button.dataset.metric;
+      document.querySelectorAll('.metric-button').forEach(btn => btn.classList.remove('active'));
+      button.classList.add('active');
+      updateLayerMetric();
+    });
+  });
+
+  document.getElementById('fileInput').addEventListener('change', event => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setStatus(`Reading local file: ${file.name}`);
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        validateAndSetData(data, file.name);
+      } catch (error) {
+        setStatus(`Could not parse selected file.\n${error.message}`, true);
+      }
+    };
+
+    reader.onerror = () => {
+      setStatus('Could not read selected file.', true);
+    };
+
+    reader.readAsText(file);
+  });
+
+  autoLoad();
+</script>
+</body>
+</html>
