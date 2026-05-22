@@ -60,6 +60,8 @@ RUN="${PYTHON} ${SCRIPT_CATCHMENT} ${FROM_CRS} ${TO_CRS} ${ISO3} ${SPEED} ${MODE
 rm data/processed/friction/ken-motorised.zip 
 rm -r computed_tts/ken/
 
+mkdir results
+
 if ${USE_CONDA}; then
   ${CONDA_PATH} ${CONDA_RUN} ${ENV_NAME} ${RUN}
 

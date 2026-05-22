@@ -6,6 +6,7 @@ figs/
 prev_codes/
 ethiopia/
 nigeria/
+results/*
 __pycache__/
 .ipynb_checkpoints/
 shared_data/rwi/rwi_tif/*.tif

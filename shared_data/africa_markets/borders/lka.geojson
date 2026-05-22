@@ -1,8 +1,0 @@
-{
-"type": "FeatureCollection",
-"name": "sri_lanka",
-"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
-"features": [
-{ "type": "Feature", "properties": { "name": "sri_lanka" }, "geometry": { "type": "MultiPolygon", "coordinates": [ [ [[ 79.16416, 5.647086 ], [ 79.36076, 8.970482 ], [ 79.44823, 9.148405 ], [ 79.48247, 9.422493 ], [ 79.36597, 9.551513 ], [ 79.65047, 9.931044 ], [ 80.06545, 10.07153 ], [ 81.33305, 9.999536 ], [ 82.64612, 5.621275 ], [ 79.16416, 5.647086 ]] ] ] } }
-]
-}
