@@ -1,4 +1,9 @@
-# Continental-scale assessment of spatial food market accessibility in Africa using open geospatial data
+# Adaptation of
+## Continental-scale assessment of spatial food market accessibility in Africa using open geospatial data
+
+Compute travel time raster to a set of healthcare facilities for a given country.
+Text below corresponds to README file of original author's code.
+
 
 ## Table of Contents
 1. [Citing](#citing)
